@@ -2,4 +2,3 @@ pandas
 matplotlib
 numpy
 simplenote
-jupyter_contrib_nbextensions
