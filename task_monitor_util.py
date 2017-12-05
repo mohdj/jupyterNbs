@@ -20,8 +20,8 @@ def isWithinGoal_func(date, startDate, endDate, holidays=[], excludeWeekend=True
         out = (date >= startDate) & (date < endDate) & (date not in holidays)
     return out
 
-def calculate_n_display_task_n_goal_metrics():
-    reference_date=dt.datetime.now()
+def calculate_n_display_task_n_goal_metrics(reference_date):
+    #reference_date=dt.datetime.now()
     simplenote = sn.Simplenote('mohdjamal8453@gmail.com', 'simple123')
     taskNoteKey="41d06e8ced6c42389127e0d727974230"
     ilmNoteKey="5f7cb643ec884642b250954ff3996f8c"
@@ -32,7 +32,7 @@ def calculate_n_display_task_n_goal_metrics():
     curdate=""
     for ln in dat[0]['content'].splitlines():
         if '*' not in ln and len(ln.strip())>0:
-            curdate=ln.strip()+' '+str(dt.datetime.now().year)
+            curdate=ln.strip()+' '+str(reference_date.year)
         elif '*' in ln:
             if ln.count(",")==3:
                 ln=ln+",1"
@@ -43,6 +43,8 @@ def calculate_n_display_task_n_goal_metrics():
     tasks['Date']=pd.to_datetime(tasks['Date'],format="%b %d %Y")
     tasks.Category=tasks.Category.apply(lambda x:x.strip().lower()) # remove whitestrips
     tasks['DateStr']=tasks.Date.apply(lambda x: dt.datetime.strftime(x,format="%b-%d"))
+    tasks['Duration'] = pd.to_numeric(tasks.Duration, errors="coerce")  # coerce to numeric if any blank durations
+
     # Tasks filters
     companyLabel= ['du','careem', 'quran','routine']
     isWeekDay=~tasks.Date.apply(lambda x: x.dayofweek in [4,5])
@@ -145,11 +147,13 @@ def calculate_n_display_task_n_goal_metrics():
         .sort_values('Date',ascending=False).reset_index(drop=True).head(3)
         .loc[:,'Duration'].mean()/60
     )
+    FT_task_hr_today_in_goal = tasks_in_goal.loc[tasks_in_goal.Date.apply(lambda x: x.date() == reference_date.date())]['Duration'].sum() / 60
+    FT_task_hr_today = tasks[tasks.Date.apply(lambda x: x.date() == reference_date.date())]['Duration'].sum() / 60
 
     # Focused Hour Metrics
-    last3_day_avg_in_goal_str="<font color='maroon'>Last 3 days avg on goals: </font><b>{avg_FT_task_hr_in_last3_days_in_goal}</b> (out of {total_committed_goal_hour_per_day})".format(avg_FT_task_hr_in_last3_days_in_goal=round(avg_FT_task_hr_in_last3_days_in_goal,1),total_committed_goal_hour_per_day=goal_config['hours'])
-    last3_day_avg_str="<font color='maroon'>Last 3 days avg: </font><b>{avg_FT_task_hr_in_last3_days}</b>".format(avg_FT_task_hr_in_last3_days=round(avg_FT_task_hr_in_last3_days,1))
-    metric_FT_html_str="<h4>Focused Hours:</h4>"+last3_day_avg_str+"</br>"+last3_day_avg_in_goal_str+"</br>"
+    last3_day_avg_in_goal_str = "<font color='maroon'>Goal: </font><b>{FT_task_hr_today_in_goal}</b> hr (avg {avg_FT_task_hr_in_last3_days_in_goal} hr out of {total_committed_goal_hour_per_day} hr)".format(avg_FT_task_hr_in_last3_days_in_goal=round(avg_FT_task_hr_in_last3_days_in_goal, 1), total_committed_goal_hour_per_day=goal_config['hours'], FT_task_hr_today_in_goal=FT_task_hr_today_in_goal)
+    last3_day_avg_str = "<font color='maroon'>Total: </font><b>{FT_task_hr_today}</b> hr (avg {avg_FT_task_hr_in_last3_days} hr)".format(avg_FT_task_hr_in_last3_days=round(avg_FT_task_hr_in_last3_days, 1), FT_task_hr_today=FT_task_hr_today)
+    metric_FT_html_str = "<h4>Focused Hours (today):</h4>" + last3_day_avg_str + "</br>" + last3_day_avg_in_goal_str + "</br>"
     display(HTML(metric_FT_html_str))
 
     # Goal Metrics
