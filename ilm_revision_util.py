@@ -46,6 +46,6 @@ def getIlmRevisionLog():
     revlog['rating']="na"
     revlog['timetaken']="na"
     revlog=revlog[['date','name','maturity','rating','timetaken']]
-    pyperclip.copy(revlog.to_csv(index=False, header=False,line_terminator=os.linesep))
+    #pyperclip.copy(revlog.to_csv(index=False, header=False,line_terminator=os.linesep))
     # print(datilm[datilm.daysDifference.isin(revsionSchedule)])
     print(revlog.to_csv(index=False, header=False))
