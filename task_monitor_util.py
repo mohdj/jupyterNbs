@@ -50,6 +50,9 @@ def calculate_n_display_task_n_goal_metrics(reference_date):
     isWeekDay=~tasks.Date.apply(lambda x: x.dayofweek in [4,5])
     last7dayFilter=(tasks.Date>= reference_date - dt.timedelta(days=8)) & isWeekDay
     nonCompanyFilter=~tasks.Category.isin(companyLabel)
+    currentWeek = int(reference_date.strftime('%W'))
+    isCurrentWeek = tasks.Date.apply(lambda x, currentWeek: int((x + dt.timedelta(days=1)).strftime('%W')) == currentWeek, args=[currentWeek])
+
     # Group by Date and Filter for last 7 days
     gbdate7days=tasks[last7dayFilter].groupby('DateStr',as_index=False)['Duration'].sum()
     gbdate7days['Duration']=round(gbdate7days['Duration']/60,1)
@@ -149,6 +152,10 @@ def calculate_n_display_task_n_goal_metrics(reference_date):
     )
     FT_task_hr_today_in_goal = tasks_in_goal.loc[tasks_in_goal.Date.apply(lambda x: x.date() == reference_date.date())]['Duration'].sum() / 60
     FT_task_hr_today = tasks[tasks.Date.apply(lambda x: x.date() == reference_date.date())]['Duration'].sum() / 60
+    goal_hrs_in_cur_week = tasks_in_goal.Duration[isCurrentWeek].sum() / 60
+    days_remaining_in_cur_week = 5 - (reference_date + dt.timedelta(days=1)).weekday()
+    ideal_goal_hrs_till_now_in_week = ((reference_date + dt.timedelta(days=1)).weekday()) * goal_config['hours']
+    weekly_goal_hr_lagging = round(ideal_goal_hrs_till_now_in_week - goal_hrs_in_cur_week, 1)
 
     # Focused Hour Metrics
     last3_day_avg_in_goal_str = "<font color='maroon'>Goal: </font><b>{FT_task_hr_today_in_goal}</b> hr (avg {avg_FT_task_hr_in_last3_days_in_goal} hr out of {total_committed_goal_hour_per_day} hr)".format(avg_FT_task_hr_in_last3_days_in_goal=round(avg_FT_task_hr_in_last3_days_in_goal, 1), total_committed_goal_hour_per_day=goal_config['hours'], FT_task_hr_today_in_goal=FT_task_hr_today_in_goal)
@@ -159,12 +166,17 @@ def calculate_n_display_task_n_goal_metrics(reference_date):
     # Goal Metrics
     uncommitted_hours=hours_available-hours_committed
     comitment_metric_str="<font color='maroon'>Uncommitted Hours: </font><b>{uncommitted_hours}</b> (out of {hours_available})".format(uncommitted_hours=uncommitted_hours,hours_available=hours_available)
+
+    weekly_lagging_by_str = "Weekly lagging by:" if weekly_goal_hr_lagging >= 0 else "Weekly leading by:"
+    weekly_lagging_by_str = "<font color='maroon'>" + weekly_lagging_by_str + "</font>"
+    weekly_lagging_by_str += "<b>{weekly_goal_hr_lagging} hr</b> ({days_remaining_in_cur_week} days remaining in week)".format(weekly_goal_hr_lagging=abs(weekly_goal_hr_lagging), days_remaining_in_cur_week=days_remaining_in_cur_week)
+
     lagging_by_str="Lagging by:" if hours_lagging_by >= 0 else "Leading by:"
     lagging_by_str="<font color='maroon'>"+lagging_by_str+"</font>"
     lagging_by_str+= "<b>{hours_lagging_by} hr</b> ({hours_completed} / {hours_committed})".format(hours_lagging_by=abs(hours_lagging_by),hours_completed=hours_completed,hours_committed=hours_committed)
     days_remaining=total_days-total_days_till_now
     days_from_deadline_str="<font color='maroon'>Days from deadline: </font><b>{days_remaining}</b> (out of {total_days})".format(days_remaining=days_remaining,total_days=total_days)
-    metric_goal_html_str="<h4>Goals:</h4>"+lagging_by_str+"</br>"+comitment_metric_str+"</br>"+days_from_deadline_str+"</br>"
+    metric_goal_html_str = "<h4>Goals:</h4>" + weekly_lagging_by_str + "</br>" + lagging_by_str + "</br>" + comitment_metric_str + "</br>" + days_from_deadline_str + "</br>"
     display(HTML(metric_goal_html_str))
 
     # display table
