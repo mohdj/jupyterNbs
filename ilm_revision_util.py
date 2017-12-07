@@ -6,6 +6,7 @@ def getIlmRevisionLog():
     import matplotlib.pyplot as plt
     import ast
     import pyperclip
+    import os
     #%matplotlib inline
 
     simplenote = sn.Simplenote('mohdjamal8453@gmail.com', 'simple123')
