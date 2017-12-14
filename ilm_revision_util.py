@@ -6,7 +6,8 @@ def getIlmRevisionLog():
     import matplotlib.pyplot as plt
     import ast
     import pyperclip
-    %matplotlib inline
+    import os
+    #%matplotlib inline
 
     simplenote = sn.Simplenote('mohdjamal8453@gmail.com', 'simple123')
     taskNoteKey="41d06e8ced6c42389127e0d727974230"
@@ -45,6 +46,6 @@ def getIlmRevisionLog():
     revlog['rating']="na"
     revlog['timetaken']="na"
     revlog=revlog[['date','name','maturity','rating','timetaken']]
-    pyperclip.copy(revlog.to_csv(index=False, header=False,line_terminator=os.linesep))
+    #pyperclip.copy(revlog.to_csv(index=False, header=False,line_terminator=os.linesep))
     # print(datilm[datilm.daysDifference.isin(revsionSchedule)])
     print(revlog.to_csv(index=False, header=False))
