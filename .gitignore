@@ -1,2 +1,6 @@
 /mohdutil.py
 /SNTaskMonitor.ipynb
+/.idea
+/.ipynb_checkpoints
+/__pycache__
+/archive/.ipynb_checkpoints
