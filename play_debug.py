@@ -39,7 +39,7 @@ def get_tasks(reference_date):
     return tasks
 
 
-def get_goal_details(reference_date):
+def __get_goal_details(reference_date):
     rawGoal = simplenote.get_note(monthlyGoalNoteKey)
     rawGoal = rawGoal[0]['content'].splitlines()
     rawGoal = [ln for ln in rawGoal if ln.strip() != ""]
@@ -80,9 +80,9 @@ def is_task_within_goal(task_dates, goal_config):
     return is_within_goal
 
 
-def get_goal_along_with_all_metrics(tasks,goal_config):
+def get_goal_along_with_all_metrics(tasks, reference_date):
     # Pull goal details from simplenote
-    goal, goal_config = get_goal_details()
+    goal, goal_config = __get_goal_details(reference_date)
 
     # isWithinGoal = is_task_within_goal(tasks['Date'],goal_config)
     goal_category = [x.strip() for x in goal.short_name.unique()]
@@ -184,104 +184,51 @@ def determine_n_display_focused_hour_metric(tasks,tasks_in_goal,goal_config,refe
     display(HTML(metric_FT_html_str))
 
 
-def display_habit_review(habit_review):
+def display_goal_status(goal):
     """
     Sort by: review_type, habit_status
     Color Code:
         red - focus and missed
         black - now, later and missed
         green - scheduled review
-    :param habit_review:
+    :param goal:
     :return:
     """
     def get_font_attribute(df):
         color = ""
-        if df.review_type.lower() == 'missed':
-            color = 'red' if df.habit_status == 'focus' else 'black'
+        if df.hours_remaining <= 0:
+            color = 'grey'
+        elif df.hours_remaining <= 1:
+            color = 'red'
+        elif df.hours_completed > 0:
+            color='blue'
         else:
-            color = 'green'
+            color='black'
         return 'color=' + color
 
     table_config = (
-    {'column_name_in_order_of_display': ['name', 'small_desc', 'streak_str', 'habit_status', 'review_type'],
-     'column_headers': ['Name', 'Description', 'Streak', 'Focus', 'Review Type'],
-     'column_sort_by': ['review_type', 'habit_status'],
-     'column_sort_by_is_asc': [True, True],
-     'widths_in_pcntg': [10, 50, 20, 10, 10],
-     'text_alignment': ['left', 'left', 'center', 'center', 'center'],
+    {'column_name_in_order_of_display': ['short_name', 'task', 'hours_remaining', 'avg_point'],
+     'column_headers': ['Name', 'Description', 'Remaining', 'Points'],
+     'column_sort_by': ['priority'],
+     'column_sort_by_is_asc': [True],
+     'widths_in_pcntg': [20, 60, 10, 10],
+     'text_alignment': ['left', 'left', 'center', 'center'],
      'column_name_whose_value_change_adds_horizontal_ruler': None,
-     'column_name_needing_custom_formatting': 'small_desc',
+     'column_name_needing_custom_formatting': 'task',
      'func_giving_font_attribute': get_font_attribute,
-     'table_heading': 'Habit Review'
+     'table_heading': 'Goal Status'
      })
-    my_util.display_html_table(habit_review, table_config)
+    my_util.display_html_table(goal, table_config)
+
 
 def calculate_n_display_task_n_goal_metrics(reference_date):
-    # reference_date=dt.datetime.now()
-
-    # task
-    tasks = get_tasks()
-    # Tasks filters
-    # companyLabel = ['du', 'careem', 'quran', 'routine']
-    # isWeekDay = ~tasks.Date.apply(lambda x: x.dayofweek in [4, 5])
-    # last7dayFilter = (tasks.Date >= reference_date - dt.timedelta(days=8)) & isWeekDay
-    # nonCompanyFilter = ~tasks.Category.isin(companyLabel)
-
-    # Group by Date and Filter for last 7 days
-    # gbdate7days = tasks[last7dayFilter].groupby('DateStr', as_index=False)['Duration'].sum()
-    # gbdate7days['Duration'] = round(gbdate7days['Duration'] / 60, 1)
-    # gbdate7daysNonCompany = tasks[last7dayFilter & nonCompanyFilter].groupby('DateStr', as_index=False)[
-    #     'Duration'].sum()
-    # gbdate7daysNonCompany['Duration'] = round(gbdate7daysNonCompany['Duration'] / 60, 1)
-
-    # goal here
-    goal, goal_config = get_goal_along_with_all_metrics(tasks)
+    tasks = get_tasks(reference_date)
+    goal, goal_config = get_goal_along_with_all_metrics(tasks, reference_date)
 
     # Get hours completed against goal from tasks and append to existing goal
     goal_category = [x.strip() for x in goal.short_name.unique()]
     tasks_in_goal = tasks[(is_task_within_goal(tasks['Date'], goal_config)) & (tasks.Category.isin(goal_category))]
-
     determine_n_display_focused_hour_metric(tasks, tasks_in_goal, goal_config, reference_date)
     determine_n_display_goal_metrics(tasks, tasks_in_goal, goal, goal_config, reference_date)
+    display_goal_status(goal)
 
-    # display table
-    status = """<table width="100%">
-    <col width="20%">
-    <col width="60%">
-    <col width="10%">
-    <col width="10%">
-      <tr>
-        <th><p align='left'>Name</p></th>
-        <th><p align='left'>Description</p></th>
-        <th><p align='left'>Remaining (hrs)</p></th>
-        <th><p align='left'>Points</p></th>
-      </tr>"""
-
-    font_default_param_str = " face='verdana' size='2' "
-    font_default_start_tag = "<font face='verdana' size='2'><p align='left'>"
-    font_default_start_center_align_tag = "<font face='verdana' size='2'><p align='center'>"
-    font_end_tag = "</p></font>"
-    for i in range(goal.shape[0]):
-        hours_completed = goal['hours_completed'][i]
-        hours_remaining = goal['hours_remaining'][i]
-        remaining_vs_committed_str = str(hours_remaining) + " / " + str(goal['hours_committed'][i])
-
-        if hours_remaining <= 0:
-            color_coded_task_str = "<font face='verdana' size='2'><p align='left'><strike>" + goal['task'][
-                i] + "</strike></p></font>"
-        elif hours_remaining <= 1:
-            color_coded_task_str = "<font color='red' face='verdana' size='2'><p align='left'>" + goal['task'][
-                i] + "</p></font>"
-        elif hours_completed > 0:
-            color_coded_task_str = "<font color='blue' face='verdana' size='2'><p align='left'>" + goal['task'][
-                i] + "</p></font>"
-        else:
-            color_coded_task_str = "<font face='verdana' size='2'><p align='left'>" + goal['task'][i] + "</p></font>"
-        status += "<tr>"
-        status += "<td>" + font_default_start_tag + goal['short_name'][i] + font_end_tag + "</td>"
-        status += "<td>" + color_coded_task_str + "</td>"
-        status += "<td>" + font_default_start_center_align_tag + remaining_vs_committed_str + font_end_tag + "</td>"
-        status += "<td>" + font_default_start_center_align_tag + str(goal['avg_point'][i]) + font_end_tag + "</td>"
-        status += "</tr>"
-    status += "</table>"
-    display(HTML(status))
