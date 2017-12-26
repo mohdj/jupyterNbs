@@ -1,0 +1,6 @@
+find an action - ctrl+shift+A (learn shortcut as you go)
+Search Method - ctrl+shift+alt+N
+search files - ctrl+N
+navigate methods - Alt up & down
+see docstring - ctrl+q
+code folding - ctrl+shift+/- (all); ctrl+/- (current); ctl+alt+/- (recursive)
