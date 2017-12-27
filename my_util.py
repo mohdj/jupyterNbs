@@ -6,12 +6,13 @@ import ast
 from IPython.core.display import display, HTML
 import itertools
 
+
 def display_html_table(df, table_config):
     # given a dataframe
     # need to print it using html table, with certain column or a column has some font (color coding, strikethrough etc to share extra info)
     # display table
 
-    #df = habit_action
+    # df = habit_action
     df = df.sort_values(by=table_config['column_sort_by'], ascending=table_config['column_sort_by_is_asc'])
     df.reset_index(drop=True, inplace=True)
 
@@ -47,8 +48,8 @@ def display_html_table(df, table_config):
                                                             'column_name_needing_custom_formatting'] == column_name else ""
             text_alignment = table_config['text_alignment'][j]
             status += (
-            "<td>" + font_start_tag.format(text_font_attribute=text_font_attribute, text_alignment=text_alignment) +
-            str(df.loc[i, column_name]) + font_end_tag + "</td>")
+                "<td>" + font_start_tag.format(text_font_attribute=text_font_attribute, text_alignment=text_alignment) +
+                str(df.loc[i, column_name]) + font_end_tag + "</td>")
         status += "</tr>"
         if i in val_change_index_for_horizontal_ruler:
             status += html_horizontal_ruler_in_table
@@ -56,5 +57,48 @@ def display_html_table(df, table_config):
     display(HTML(status))
 
 
-def add_my_numbers(x,y):
-    return x+y
+def display_google_pie_chart(chart_data, title, width="", height=""):
+    """
+    draws pie chart using google chart API
+    :param chart_data: looks like [['Task', 'Hours per Day'],['Work', 8],['Eat', 2],['TV', 4],['Gym', 2]] 1st element should be column headers
+    :param title: chart title
+    :param width: looks like ", 'width':550"
+    :param height: looks like ", 'height':400"
+    :return: returns nothing, displays the chart as HTML in jupyter notebook
+    """
+    pie_google_chart_html_as_string = """
+    <!DOCTYPE html>
+    <html lang="en-US">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <script type="text/javascript">
+    // Load google charts
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawChart);
+
+    // Draw the chart and set the chart values
+    function drawChart() {
+      var data = google.visualization.arrayToDataTable(##chart_data##);
+
+      // Optional; add a title and set the width and height of the chart
+      var options = {'title':'##title##' ##width## ##height##};
+
+      // Display the chart inside the <div> element with id="piechart"
+      var chart = new google.visualization.PieChart(document.getElementById('piechart2'));
+      chart.draw(data, options);
+    }
+    </script>
+
+    <body>
+
+
+    <div id="piechart2"></div>
+
+    </body>
+    </html>
+    """
+    pie_google_chart_html_as_string = pie_google_chart_html_as_string.replace("##chart_data##", chart_data)
+    pie_google_chart_html_as_string = pie_google_chart_html_as_string.replace("##title##", title)
+    pie_google_chart_html_as_string = pie_google_chart_html_as_string.replace("##width##", width)
+    pie_google_chart_html_as_string = pie_google_chart_html_as_string.replace("##height##", height)
+    display(HTML(pie_google_chart_html_as_string))

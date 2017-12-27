@@ -3,3 +3,4 @@ matplotlib
 numpy
 simplenote
 pyperclip
+bokeh

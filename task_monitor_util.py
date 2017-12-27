@@ -10,7 +10,14 @@ import matplotlib.pyplot as plt
 import ast
 from IPython.core.display import display, HTML, display_javascript, Javascript
 from togglwrapper import Toggl
+from bokeh.plotting import ColumnDataSource, figure
+from bokeh.embed import file_html
+from bokeh.resources import CDN
+from bokeh.transform import dodge
+from bokeh.core.properties import value
+
 simplenote = sn.Simplenote('mohdjamal8453@gmail.com', 'simple123')
+pd.options.mode.chained_assignment = None
 
 
 def get_tasks_from_toggl(reference_date):
@@ -20,7 +27,8 @@ def get_tasks_from_toggl(reference_date):
     toggl = Toggl(toggl_api_token)
 
     # Pull Toggl Data
-    start_date = str(reference_date.date() - dt.timedelta(days=number_of_days_of_past_toggl_data_to_pull)) + "T00:00:00+00:00"
+    start_date = str(
+        reference_date.date() - dt.timedelta(days=number_of_days_of_past_toggl_data_to_pull)) + "T00:00:00+00:00"
     end_date = str(reference_date.date() + dt.timedelta(days=1)) + "T00:00:00+00:00"
 
     # Pull projects
@@ -76,27 +84,27 @@ def get_tasks_from_simplenote(reference_date):
 
 
 def get_tasks(reference_date):
-    tasks_from_simplenote=get_tasks_from_simplenote(reference_date)
-    tasks_from_toggl=get_tasks_from_toggl(reference_date)
-    tasks=pd.concat([tasks_from_simplenote,tasks_from_toggl],axis=0)
-    tasks.reset_index(inplace=True,drop=True)
+    tasks_from_simplenote = get_tasks_from_simplenote(reference_date)
+    tasks_from_toggl = get_tasks_from_toggl(reference_date)
+    tasks = pd.concat([tasks_from_simplenote, tasks_from_toggl], axis=0)
+    tasks.reset_index(inplace=True, drop=True)
     return tasks
 
 
 def get_task_tracker_config():
     task_tracker_config_note_key = '58cb45a3-54ac-4316-9a57-7272b8edc0a3'
     task_tracker_config_note_raw_content = simplenote.get_note(task_tracker_config_note_key)[0]['content']
-    task_tracker_config={}
+    task_tracker_config = {}
     for code_str in task_tracker_config_note_raw_content.splitlines():
-        code_str=code_str.replace("*","").strip()
-        if(code_str.count("=")==0):
+        code_str = code_str.replace("*", "").strip()
+        if (code_str.count("=") == 0):
             continue
-        if(code_str.count("#")==0):
-            code_str=code_str[:code_str.index("#")] # remove comments
-        equalto_index=code_str.index("=")
-        var_name=code_str[:equalto_index]
-        var_value=eval(code_str[equalto_index+1:])
-        task_tracker_config[var_name]=var_value
+        if (code_str.count("#") == 0):
+            code_str = code_str[:code_str.index("#")]  # remove comments
+        equalto_index = code_str.index("=")
+        var_name = code_str[:equalto_index]
+        var_value = eval(code_str[equalto_index + 1:])
+        task_tracker_config[var_name] = var_value
     return task_tracker_config
 
 
@@ -175,16 +183,18 @@ def get_goal_along_with_all_metrics(tasks, reference_date):
     return goal, goal_config
 
 
-def __is_current_week(date_to_compare,reference_date,exclude_weekend=False,holidays=[]):
+def __is_current_week(date_to_compare, reference_date, exclude_weekend=False, holidays=[]):
     current_week_number = int(reference_date.strftime('%W'))
     if exclude_weekend:
-        is_current_week = (int((date_to_compare + dt.timedelta(days=1)).strftime('%W')) == current_week_number) & (date_to_compare.weekday() not in [4, 5]) & (date_to_compare not in holidays)
+        is_current_week = (int((date_to_compare + dt.timedelta(days=1)).strftime('%W')) == current_week_number) & (
+            date_to_compare.weekday() not in [4, 5]) & (date_to_compare not in holidays)
     else:
-        is_current_week = (int((date_to_compare + dt.timedelta(days=1)).strftime('%W')) == current_week_number) & (date_to_compare not in holidays)
+        is_current_week = (int((date_to_compare + dt.timedelta(days=1)).strftime('%W')) == current_week_number) & (
+            date_to_compare not in holidays)
     return is_current_week
 
 
-def determine_n_display_goal_metrics(tasks,tasks_in_goal,goal,goal_config,reference_date):
+def determine_n_display_goal_metrics(tasks, tasks_in_goal, goal, goal_config, reference_date):
     is_current_week = tasks.Date.apply(__is_current_week, args=[reference_date])
 
     dates_in_goal_period = [x for x in pd.date_range(start=goal_config['From'], end=goal_config['To'])]
@@ -226,18 +236,21 @@ def determine_n_display_goal_metrics(tasks,tasks_in_goal,goal,goal_config,refere
     display(HTML(metric_goal_html_str))
 
 
-def determine_n_display_focused_hour_metric(tasks,tasks_in_goal,goal_config,reference_date):
+def determine_n_display_focused_hour_metric(tasks, goal, tasks_in_goal, goal_config, tracker_config, reference_date):
     # Focused Hour Metrics
+    ft_categories = tracker_config['ft_projects'] + list(goal.short_name)
     avg_FT_task_hr_in_last3_days = (
-        tasks.loc[tasks.Date.apply(lambda x: (x.weekday() not in [4, 5]) & (x.date() < reference_date.date()) & (
-            x.date() >= (reference_date.date() - dt.timedelta(days=7))))]
+        tasks.loc[tasks.apply(lambda x: (x.Date.weekday() not in [4, 5]) & (x.Date.date() < reference_date.date())
+                                        & (x.Date.date() >= (reference_date.date() - dt.timedelta(days=7))) &
+                                        (x.Category in ft_categories)
+                              , axis=1)]
         .groupby('Date', as_index=False)['Duration'].sum()
         .sort_values('Date', ascending=False).reset_index(drop=True).head(3)
         .loc[:, 'Duration'].mean() / 60
     )
     avg_FT_task_hr_in_last3_days_in_goal = (
         tasks_in_goal.loc[tasks_in_goal.Date.apply(lambda x: (x.date() < reference_date.date()) & (
-            x.date() >= (reference_date.date() - dt.timedelta(days=7))))]
+        x.date() >= (reference_date.date() - dt.timedelta(days=7))))]
         .groupby('Date', as_index=False)['Duration'].sum()
         .sort_values('Date', ascending=False).reset_index(drop=True).head(3)
         .loc[:, 'Duration'].mean() / 60
@@ -250,7 +263,8 @@ def determine_n_display_focused_hour_metric(tasks,tasks_in_goal,goal_config,refe
         avg_FT_task_hr_in_last3_days_in_goal=round(avg_FT_task_hr_in_last3_days_in_goal, 1),
         total_committed_goal_hour_per_day=goal_config['hours'], FT_task_hr_today_in_goal=FT_task_hr_today_in_goal)
     last3_day_avg_str = "<font color='maroon'>Total: </font><b>{FT_task_hr_today}</b> hr (avg {avg_FT_task_hr_in_last3_days} hr)".format(
-        avg_FT_task_hr_in_last3_days=round(avg_FT_task_hr_in_last3_days, 1), FT_task_hr_today=FT_task_hr_today)
+        avg_FT_task_hr_in_last3_days=round(avg_FT_task_hr_in_last3_days, 1),
+        FT_task_hr_today=round(FT_task_hr_today, 1))
     metric_FT_html_str = "<h4>Focused Hours (today):</h4>" + last3_day_avg_str + "</br>" + last3_day_avg_in_goal_str + "</br>"
     display(HTML(metric_FT_html_str))
 
@@ -265,6 +279,7 @@ def display_goal_status(goal):
     :param goal:
     :return:
     """
+
     def get_font_attribute(df):
         color = ""
         if df.hours_remaining <= 0:
@@ -272,62 +287,172 @@ def display_goal_status(goal):
         elif df.hours_remaining <= 1:
             color = 'red'
         elif df.hours_completed > 0:
-            color='blue'
+            color = 'blue'
         else:
-            color='black'
+            color = 'black'
         return 'color=' + color
 
     table_config = (
-    {'column_name_in_order_of_display': ['short_name', 'task', 'hours_remaining', 'avg_point'],
-     'column_headers': ['Name', 'Description', 'Remaining', 'Points'],
-     'column_sort_by': ['priority'],
-     'column_sort_by_is_asc': [True],
-     'widths_in_pcntg': [20, 60, 10, 10],
-     'text_alignment': ['left', 'left', 'center', 'center'],
-     'column_name_whose_value_change_adds_horizontal_ruler': None,
-     'column_name_needing_custom_formatting': 'task',
-     'func_giving_font_attribute': get_font_attribute,
-     'table_heading': 'Goal Status'
-     })
+        {'column_name_in_order_of_display': ['short_name', 'task', 'hours_remaining', 'avg_point'],
+         'column_headers': ['Name', 'Description', 'Remaining', 'Points'],
+         'column_sort_by': ['priority'],
+         'column_sort_by_is_asc': [True],
+         'widths_in_pcntg': [20, 60, 10, 10],
+         'text_alignment': ['left', 'left', 'center', 'center'],
+         'column_name_whose_value_change_adds_horizontal_ruler': None,
+         'column_name_needing_custom_formatting': 'task',
+         'func_giving_font_attribute': get_font_attribute,
+         'table_heading': 'Goal Status'
+         })
     my_util.display_html_table(goal, table_config)
 
 
 def calculate_n_display_task_n_goal_metrics(reference_date):
+    # pull and prepare data
     tasks = get_tasks(reference_date)
     goal, goal_config = get_goal_along_with_all_metrics(tasks, reference_date)
-
-    # Get hours completed against goal from tasks and append to existing goal
     tasks_in_goal = get_tasks_towards_current_goal(tasks, goal, goal_config)
-    determine_n_display_focused_hour_metric(tasks, tasks_in_goal, goal_config, reference_date)
+    tracker_config = get_task_tracker_config()
+    weekly_goal_status = get_weekly_hour_spent_goal_status(tasks, goal, tracker_config, reference_date)
+    daily_goal_status = get_daily_hour_spent_status(tasks, goal, tracker_config, goal_config, reference_date)
+
+    # Hour spent distribution
+    display(HTML("<h3 align='center'><font color='maroon'>Time Spent</font></h3>"))
+    determine_n_display_focused_hour_metric(tasks, goal, tasks_in_goal, goal_config, tracker_config, reference_date)
+    display_avg_daily_hour_breakdown_piechart(daily_goal_status)
+    display_daily_goal_status_barchart(daily_goal_status)
+    display_weekly_goal_status_barchart(weekly_goal_status)
+
+    # Goal metrics
+    display(HTML("</br><hr>"))
+    display(HTML("<h3 align='center'><font color='maroon'>Goal</font></h3>"))
     determine_n_display_goal_metrics(tasks, tasks_in_goal, goal, goal_config, reference_date)
     display_goal_status(goal)
 
 
-def get_weekly_hour_spent_goal_status(tasks,tracker_config,reference_date):
-    tasks_in_current_week=tasks.loc[tasks.Date.apply(tk.__is_current_week,args=[reference_date]),:]
-    weekly_goal_current_status=tasks_in_current_week.groupby('Category',as_index=False)['Duration'].sum()
-    weekly_goal_current_status.rename(mapper={'Duration':'Actual'},axis=1,inplace=True)
-    weekly_goal_current_status.Actual=round(weekly_goal_current_status.Actual/60,1)
-    weekly_goal=pd.DataFrame(pd.Series(tracker_config['weekly_goal']),columns=['Ideal']).reset_index(drop=False).rename({'index':'Category'},axis=1)
-    weekly_goal_current_status=pd.merge(weekly_goal,weekly_goal_current_status,how='left',on='Category')
-    weekly_goal_current_status.Actual.fillna(0,inplace=True)
+def get_weekly_hour_spent_goal_status(tasks, goal, tracker_config, reference_date):
+    tasks_in_current_week = tasks.loc[tasks.Date.apply(__is_current_week, args=[reference_date]), :]
+    tasks_in_current_week.loc[tasks_in_current_week.Category.isin(goal.short_name), 'Category'] = 'goal'
+    tasks_in_current_week.loc[tasks_in_current_week.Category.apply(
+        lambda x: (x in tracker_config['ft_projects']) & (
+            x not in list(tracker_config['daily_goal'].keys()))), 'Category'] = 'ft_others'
+    weekly_goal_current_status = tasks_in_current_week.groupby('Category', as_index=False)['Duration'].sum()
+    weekly_goal_current_status.rename(mapper={'Duration': 'actual'}, axis=1, inplace=True)
+    weekly_goal_current_status.actual = round(weekly_goal_current_status.actual / 60, 1)
+    weekly_goal = pd.DataFrame(pd.Series(tracker_config['weekly_goal']), columns=['total_planned']).reset_index(
+        drop=False).rename({'index': 'Category'}, axis=1)
+    weekly_goal_current_status = pd.merge(weekly_goal, weekly_goal_current_status, how='left', on='Category')
+    weekly_goal_current_status[
+        'ideal'] = weekly_goal_current_status.total_planned * __get_number_of_days_passed_in_week_by_today_EOD(
+        reference_date) / 7
+    weekly_goal_current_status.actual.fillna(0, inplace=True)
+    weekly_goal_current_status.actual=weekly_goal_current_status.actual.round(1)
+    weekly_goal_current_status.total_planned = weekly_goal_current_status.total_planned.round(1)
+    weekly_goal_current_status.ideal = weekly_goal_current_status.ideal.round(1)
     return weekly_goal_current_status
 
 
-def get_daily_hour_spent_status(tasks,tracker_config,goal_config,reference_date):
-    daily_goal=pd.DataFrame(pd.Series(tracker_config['daily_goal']),columns=['Ideal']).reset_index(drop=False).rename({'index':'Category'},axis=1)
+def get_daily_hour_spent_status(tasks, goal, tracker_config, goal_config, reference_date):
+    daily_goal = pd.DataFrame(pd.Series(tracker_config['daily_goal']), columns=['Ideal']).reset_index(
+        drop=False).rename({'index': 'Category'}, axis=1)
 
-    tasks_in_current_week_in_company=tasks.loc[tasks.Date.apply(__is_current_week,args=[reference_date,True,goal_config['holidays']]),:]
-    avg_daily_category_wise_distribution_of_tasks_in_company=tasks_in_current_week_in_company.groupby('Category',as_index=False)['Duration'].sum()
-    avg_daily_category_wise_distribution_of_tasks_in_company.rename(mapper={'Duration':'Avg_weekly'},axis=1,inplace=True)
-    avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly=round(avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly/(5*60),1)
+    tasks_in_current_week_in_company = tasks.loc[tasks.Date.apply(__is_current_week,
+                                                                  args=[reference_date, True, goal_config['holidays']]),
+                                       :]
+    tasks_in_current_week_in_company.loc[
+        tasks_in_current_week_in_company.Category.isin(goal.short_name), 'Category'] = 'goal'
+    tasks_in_current_week_in_company.loc[tasks_in_current_week_in_company.Category.apply(
+        lambda x: (x in tracker_config['ft_projects']) & (
+            x not in list(tracker_config['daily_goal'].keys()))), 'Category'] = 'ft_others'
+    avg_daily_category_wise_distribution_of_tasks_in_company = \
+        tasks_in_current_week_in_company.groupby('Category', as_index=False)['Duration'].sum()
+    avg_daily_category_wise_distribution_of_tasks_in_company.rename(mapper={'Duration': 'Avg_weekly'}, axis=1,
+                                                                    inplace=True)
+    avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly = round(
+        avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly / (5 * 60), 1)
 
-    tasks_today=tasks.loc[tasks.Date.apply(lambda x:x.date()==reference_date.date()),:]
-    today_category_wise_distribution_of_tasks=tasks_today.groupby('Category',as_index=False)['Duration'].sum()
-    today_category_wise_distribution_of_tasks.rename(mapper={'Duration':'Today'},axis=1,inplace=True)
-    today_category_wise_distribution_of_tasks.Today=round(today_category_wise_distribution_of_tasks.Today/(60),1)
+    tasks_today = tasks.loc[tasks.Date.apply(lambda x: x.date() == reference_date.date()), :]
+    today_category_wise_distribution_of_tasks = tasks_today.groupby('Category', as_index=False)['Duration'].sum()
+    today_category_wise_distribution_of_tasks.rename(mapper={'Duration': 'Today'}, axis=1, inplace=True)
+    today_category_wise_distribution_of_tasks.Today = round(today_category_wise_distribution_of_tasks.Today / (60), 1)
 
-    daily_goal_status=pd.merge(daily_goal,avg_daily_category_wise_distribution_of_tasks_in_company,how="left",on="Category")
-    daily_goal_status=pd.merge(daily_goal_status,today_category_wise_distribution_of_tasks,how="left",on="Category")
+    daily_goal_status = pd.merge(daily_goal, avg_daily_category_wise_distribution_of_tasks_in_company, how="left",
+                                 on="Category")
+    daily_goal_status = pd.merge(daily_goal_status, today_category_wise_distribution_of_tasks, how="left",
+                                 on="Category")
     daily_goal_status.fillna(0, inplace=True)
+    daily_goal_status.Ideal = daily_goal_status.Ideal.round(1)
+    daily_goal_status.Avg_weekly = daily_goal_status.Avg_weekly.round(1)
+    daily_goal_status.Today = daily_goal_status.Today.round(1)
     return daily_goal_status
+
+
+def __get_number_of_days_passed_in_week_by_today_EOD(reference_date):
+    day_of_week = reference_date.weekday() + 2
+    day_of_week = 1 if (day_of_week == 8) else day_of_week
+    return day_of_week
+
+
+def display_avg_daily_hour_breakdown_piechart(daily_goal_status):
+    chart_data = "[['Category', 'Hours per Day']," + ",".join(
+        daily_goal_status.apply(lambda x: "['" + x.Category + "', " + str(x.Avg_weekly) + "]", axis=1)) + "]"
+    title, width, height = "", "", ""
+    my_util.display_google_pie_chart(chart_data, "Daily Status (Weekly Avg)", width="", height="")
+
+
+def display_daily_goal_status_barchart(daily_goal_status):
+    daily_goal_status_graph_data = daily_goal_status.to_dict(orient="list")
+    # create a  figure
+    source = ColumnDataSource(daily_goal_status_graph_data)
+    p = figure(x_range=daily_goal_status_graph_data['Category'], plot_height=250,
+               title="Daily status (Ideal vs Avg vs Today)",
+               toolbar_location=None, tools="")
+
+    p.vbar(x=dodge('Category', -0.25, range=p.x_range), top='Ideal', width=0.2, source=source,
+           color="#c9d9d3", legend=value("Ideal"))
+    p.text(x=dodge('Category', -0.25, range=p.x_range), y='Ideal', text='Ideal', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+
+    p.vbar(x=dodge('Category', 0.0, range=p.x_range), top='Avg_weekly', width=0.2, source=source,
+           color="#718dbf", legend=value("Avg_weekly"))
+    p.text(x=dodge('Category', 0.0, range=p.x_range), y='Avg_weekly', text='Avg_weekly', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+
+    p.vbar(x=dodge('Category', 0.25, range=p.x_range), top='Today', width=0.2, source=source,
+           color="#e84d60", legend=value("Today"))
+    p.text(x=dodge('Category', 0.25, range=p.x_range), y='Today', text='Today', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+    p.legend.visible = False
+    p.title.align = "center"
+    p.title.text_color = "maroon"
+    html = file_html(p, CDN)
+    display(HTML(html))
+
+
+def display_weekly_goal_status_barchart(weekly_goal_status):
+    weekly_goal_status_graph_data = weekly_goal_status.to_dict(orient="list")
+    source = ColumnDataSource(weekly_goal_status_graph_data)
+    p = figure(x_range=weekly_goal_status_graph_data['Category'], plot_height=250,
+               title="Weakly status (Planned vs Ideal vs Actual)",
+               toolbar_location=None, tools="")
+
+    p.vbar(x=dodge('Category', -0.25, range=p.x_range), top='total_planned', width=0.2, source=source,
+           color="#c9d9d3", legend=value("total_planned"))
+    p.text(x=dodge('Category', -0.25, range=p.x_range), y='total_planned', text='total_planned', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+
+    p.vbar(x=dodge('Category', 0, range=p.x_range), top='ideal', width=0.2, source=source,
+           color="#718dbf", legend=value("ideal"))
+    p.text(x=dodge('Category', 0, range=p.x_range), y='ideal', text='ideal', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+
+    p.vbar(x=dodge('Category', 0.25, range=p.x_range), top='actual', width=0.2, source=source,
+           color="#e84d60", legend=value("actual"))
+    p.text(x=dodge('Category', 0.25, range=p.x_range), y='actual', text='actual', source=source,
+           text_font_size={'value': '7pt'}, text_align='center')
+
+    p.legend.visible = False
+    p.title.align = "center"
+    p.title.text_color = "maroon"
+    html = file_html(p, CDN)
+    display(HTML(html))
