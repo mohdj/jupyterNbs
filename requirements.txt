@@ -4,3 +4,4 @@ numpy
 simplenote
 pyperclip
 bokeh
+togglwrapper
