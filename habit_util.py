@@ -263,7 +263,7 @@ def get_actions_against_habits(habit_log, habit_streak, reference_date):
 
     #Since only last 3 days data affects, so let's filter only last 3 days logs
     # now for all those day based habits where we don't have expilicit entry let's make explicit no entry with forget reason
-    last3_days_habit_log=habit_log[habit_log.date.apply(lambda x: x.date() >= (reference_date - dt.timedelta(days=2)).date())]
+    last3_days_habit_log=habit_log.loc[habit_log.date.apply(lambda x: x.date() >= (reference_date - dt.timedelta(days=2)).date()),:]
 
     #cartesian product - for getting date X name
     date_last_3_days = [reference_date.date() - dt.timedelta(days=x) for x in range(0, 3)]
