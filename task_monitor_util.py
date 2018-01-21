@@ -49,7 +49,7 @@ def get_tasks_from_toggl(reference_date):
     tasks['Date'] = tasks.start.apply(lambda x: dt.datetime(x.year, x.month, x.day))
     tasks['EndTime'] = tasks.start.apply(lambda x: dt.datetime.strftime(x, "%H:%M"))
     tasks['Point'] = 1
-    tasks.rename_axis({'name': 'Category', 'description': 'Desc', 'duration': 'Duration'}, inplace=True, axis=1)
+    tasks.rename({'name': 'Category', 'description': 'Desc', 'duration': 'Duration'}, inplace=True, axis=1)
     tasks.Category.fillna(value="", inplace=True)
     tasks.Category = tasks.Category.apply(lambda x: x.strip().lower())  # remove whitestrips
     tasks['DateStr'] = tasks.Date.apply(lambda x: dt.datetime.strftime(x, format="%b-%d"))
@@ -337,10 +337,10 @@ def get_weekly_hour_spent_goal_status(tasks, goal, tracker_config, reference_dat
         lambda x: (x in tracker_config['ft_projects']) & (
             x not in list(tracker_config['daily_goal'].keys()))), 'Category'] = 'ft_others'
     weekly_goal_current_status = tasks_in_current_week.groupby('Category', as_index=False)['Duration'].sum()
-    weekly_goal_current_status.rename_axis(mapper={'Duration': 'actual'}, axis=1, inplace=True)
+    weekly_goal_current_status.rename(mapper={'Duration': 'actual'}, axis=1, inplace=True)
     weekly_goal_current_status.actual = round(weekly_goal_current_status.actual / 60, 1)
     weekly_goal = pd.DataFrame(pd.Series(tracker_config['weekly_goal']), columns=['total_planned']).reset_index(
-        drop=False).rename_axis({'index': 'Category'}, axis=1)
+        drop=False).rename({'index': 'Category'}, axis=1)
     weekly_goal_current_status = pd.merge(weekly_goal, weekly_goal_current_status, how='left', on='Category')
     weekly_goal_current_status[
         'ideal'] = weekly_goal_current_status.total_planned * __get_number_of_days_passed_in_week_by_today_EOD(
@@ -354,7 +354,7 @@ def get_weekly_hour_spent_goal_status(tasks, goal, tracker_config, reference_dat
 
 def get_daily_hour_spent_status(tasks, goal, tracker_config, goal_config, reference_date):
     daily_goal = pd.DataFrame(pd.Series(tracker_config['daily_goal']), columns=['Ideal']).reset_index(
-        drop=False).rename_axis({'index': 'Category'}, axis=1)
+        drop=False).rename({'index': 'Category'}, axis=1)
 
     tasks_in_current_week_in_company = tasks.loc[tasks.Date.apply(__is_current_week,
                                                                   args=[reference_date, True, goal_config['holidays']]),
@@ -366,14 +366,14 @@ def get_daily_hour_spent_status(tasks, goal, tracker_config, goal_config, refere
             x not in list(tracker_config['daily_goal'].keys()))), 'Category'] = 'ft_others'
     avg_daily_category_wise_distribution_of_tasks_in_company = \
         tasks_in_current_week_in_company.groupby('Category', as_index=False)['Duration'].sum()
-    avg_daily_category_wise_distribution_of_tasks_in_company.rename_axis(mapper={'Duration': 'Avg_weekly'}, axis=1,
+    avg_daily_category_wise_distribution_of_tasks_in_company.rename(mapper={'Duration': 'Avg_weekly'}, axis=1,
                                                                     inplace=True)
     avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly = round(
         avg_daily_category_wise_distribution_of_tasks_in_company.Avg_weekly / (5 * 60), 1)
 
     tasks_today = tasks.loc[tasks.Date.apply(lambda x: x.date() == reference_date.date()), :]
     today_category_wise_distribution_of_tasks = tasks_today.groupby('Category', as_index=False)['Duration'].sum()
-    today_category_wise_distribution_of_tasks.rename_axis(mapper={'Duration': 'Today'}, axis=1, inplace=True)
+    today_category_wise_distribution_of_tasks.rename(mapper={'Duration': 'Today'}, axis=1, inplace=True)
     today_category_wise_distribution_of_tasks.Today = round(today_category_wise_distribution_of_tasks.Today / (60), 1)
 
     daily_goal_status = pd.merge(daily_goal, avg_daily_category_wise_distribution_of_tasks_in_company, how="left",
