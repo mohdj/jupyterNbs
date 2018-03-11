@@ -32,7 +32,9 @@ def getIlmRevisionLog():
     datilm['date']=pd.to_datetime(datilm['date'],format="%d/%m/%y")
     datilm['weekstartdate']=datilm['date'].dt.to_period('W').apply(lambda r: r.start_time)-dt.timedelta(days=1)
 
-    cur_week_start_date=dt.datetime.now() - dt.timedelta(days=dt.datetime.now().weekday()+1)
+    day_of_week = dt.datetime.now().weekday() + 1
+    day_of_week = 0 if day_of_week == 7 else day_of_week
+    cur_week_start_date=dt.datetime.now() - dt.timedelta(days=day_of_week)
     datilm['daysDifference']=datilm.weekstartdate.apply(lambda ilmdate, curWeekStartDate: (curWeekStartDate-ilmdate).days,args=[cur_week_start_date])
 
     is_aqa_maula_vaaz=datilm.name.apply(lambda x: any([y in x.lower() for y in maula_vaaz_identifier]))
