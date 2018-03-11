@@ -15,11 +15,11 @@ def getIlmRevisionLog():
 
     maula_vaaz_identifier=['maula','ashara']
     # [0,1,2,5,10,21,52,88,140] earlier
-    revsion_schedule=[1,3,5,10,21,52,88,140]+[(140+(x+1)*52) for x in range(5)] # assign for next 5 years as well
+    revsion_schedule=[0,1,3,5,10,21,52,88,140]+[(140+(x+1)*52) for x in range(5)] # assign for next 5 years as well
     revsion_schedule=[x*7 for x in revsion_schedule]
 
     # [0,1,2,5,10,21,52] earlier
-    revsion_schedule_for_maula_vaaz=[1,3,5,10,21,52]+[(52+(x+1)*30) for x in range(10)] # revise maula tus bayaan every 7 months all
+    revsion_schedule_for_maula_vaaz=[0,1,3,5,10,21,52]+[(52+(x+1)*30) for x in range(10)] # revise maula tus bayaan every 7 months all
     revsion_schedule_for_maula_vaaz=[x*7 for x in revsion_schedule_for_maula_vaaz]
 
     ilm_note_raw=simplenote.get_note(ilm_note_key)
